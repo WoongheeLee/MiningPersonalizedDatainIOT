@@ -2,7 +2,7 @@ Deadline: Dec, 23rd
 
 *Given: user-item matrix, item data, user data
 *Goal: prediction user-item
-*Output: user id <tab> item id <tab> predicted rating
+*Output: user id \<tab> item id \<tab> predicted rating
 
 
 File and goal statements are below.
@@ -11,7 +11,7 @@ File and goal statements are below.
 Data set
 *	matrix.dat : user – item matrix
 *	Format:
-*	user id  <tab> item id <tab> rating <tab> timestamp
+*	user id  \<tab> item id \<tab> rating \<tab> timestamp
 *	Stat
 *	943 users
 *	1682 items
@@ -30,8 +30,8 @@ Data set
 
 Submission
 *	Predict.java
-*	Usage: <# of users> <# of items> <matrix data file> <item info file> <user info file> <test file> <k>
+*	Usage: <# of users> <# of items> \<matrix data file> \<item info file> \<user info file> \<test file>
 *	Test file
-*	Format: user id <tab> item id
+*	Format: user id \<tab> item id
 *	Output
-*	Format: user id <tab> item id <tab> predicted rating
+*	Format: user id \<tab> item id \<tab> predicted rating
