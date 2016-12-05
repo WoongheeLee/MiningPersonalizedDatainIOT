@@ -9,7 +9,7 @@ File and goal statements are below.
 Data set
 *	matrix.dat : user – item matrix
 *	Format:
-**	user id  <tab> item id <tab> rating <tab> timestamp
+::	user id  <tab> item id <tab> rating <tab> timestamp
 	Stat
 	943 users
 	1682 items
