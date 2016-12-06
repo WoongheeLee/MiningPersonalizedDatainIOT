@@ -5,6 +5,9 @@
 // Output: user id <tab> item id <tab> predicted rating
 
 import java.util.*;
+
+import org.jgrapht.graph.*;
+
 import Jama.Matrix;
 import java.io.*;
 
@@ -117,9 +120,12 @@ public class Predict {
 		return genre;
 	}
 	
-	private static double getDist(Matrix mat, int row) {
+	private static String getMinDist(Matrix mat, int row) {
 		double sim = Double.MAX_VALUE;
 		int item = 0;
+		
+		double sim2 = 0d;
+		int item2 = 0;
 		
 		for(int i = 0; i < mat.getRowDimension(); i++) {
 			double temp = 0d;
@@ -132,6 +138,9 @@ public class Predict {
 				
 				
 				if(temp < sim) {
+					sim2 = sim;
+					item2 = item;
+					
 					sim = temp;
 					item = i+1;
 //					System.out.println("item: "+item+"\tsim = "+sim);
@@ -139,10 +148,41 @@ public class Predict {
 			}
 		}
 		
-		System.out.println("The most similar item with "+row+" is " + item +", and the similarity is " +sim);
+//		System.out.println("The most similar item with "+row+" is " + item +", and the similarity is " +sim);
 //		System.out.println();
 		
-		return sim;
+		return item+","+sim+","+item2+","+sim2;
+	}
+	
+	private static void printMinDist(Matrix mat) {
+		for(int i = 0; i < mat.getRowDimension(); i++) {
+			String minDist = getMinDist(mat, i);
+			String[] arr = minDist.split(",");
+			System.out.println((i+1)+"-th row is similar with "+arr[0]+", and the similarity is "+arr[1]+".");
+		}
+	}
+	
+	private static Matrix getUserItem(Matrix mat) {
+		double M = 0;
+		double N = 0;
+		for(int i = 0; i < mat.getRowDimension(); i++) {
+			if(M < mat.get(i, 0)) {
+				M = mat.get(i, 0);
+			}
+			if(N < mat.get(i, 1)) {
+				N = mat.get(i, 1);
+			}
+		}
+		
+		double[][] temp = new double[(int)M][(int)N];
+		for(int i = 0; i < mat.getRowDimension(); i++) {
+			temp[(int)mat.get(i,0)-1][(int)mat.get(i,1)-1] = mat.get(i, 2);
+//			System.out.println((mat.get(i, 0)-1) + "\t"+(mat.get(i, 1)-1)+"\t"+mat.get(i, 2));
+		}
+		
+		Matrix userItem = new Matrix(temp);
+//		System.out.println(userItem.getRowDimension()+ "\t"+ userItem.getColumnDimension());
+		return userItem;
 	}
 	
 	public static void main(String[] args) {
@@ -157,21 +197,57 @@ public class Predict {
 		String file4 = "test.input";	// "\t"
 		
 		Matrix matrix = getMatrix(file1);
+		Matrix userItem = getUserItem(matrix);
+		
 		Matrix test = getMatrix(file4);
 		TreeMap<Integer,ArrayList<String>> item = getData(file2);
 		TreeMap<Integer,ArrayList<String>> user = getData(file3);
 		
 		Matrix genre  = getGenre(item);
 		
-		printMatrix(matrix);
+//		printMatrix(matrix);
+//		printMatrix(userItem);
 //		printMatrix(test);
 //		printData(item);
 //		printGenre(item);
 //		printData(user);
 //		printMatrix(genre);
+//		printMinDist(genre);
+//		printMinDist(userItem);
 		
-		for(int i = 0; i < genre.getRowDimension(); i++) {
-//			getDist(genre, i);
+		SimpleWeightedGraph<Double,DefaultWeightedEdge> userGraph = new SimpleWeightedGraph<Double,DefaultWeightedEdge>(DefaultWeightedEdge.class);
+		for(int i = 0; i < userItem.getRowDimension(); i++) {
+//			System.out.println(getMinDist(userItem,i));
+			String[] arr = getMinDist(userItem,i).split(",");
+			
+			Double v1 = (double)(i+1);
+			Double v2 = Double.parseDouble(arr[0]);
+			Double w1 = Double.parseDouble(arr[1]);
+			userGraph.addVertex(v1);
+			userGraph.addVertex(v2);
+			userGraph.addEdge(v1, v2);
+			DefaultWeightedEdge e = userGraph.getEdge(v1, v2);
+			userGraph.setEdgeWeight(e, w1);
+			
+			Double v3 = Double.parseDouble(arr[2]);
+			Double w2 = Double.parseDouble(arr[3]);
+			userGraph.addVertex(v3);
+			userGraph.addEdge(v1, v3);
+			e = userGraph.getEdge(v1, v3);
+			userGraph.setEdgeWeight(e, w2);
 		}
+		
+		System.out.println("userGraph has "+userGraph.vertexSet().size()+" nodes.");
+		System.out.println("userGraph has "+userGraph.edgeSet().size()+" edges.");
+		
+		Iterator<Double> itr = userGraph.vertexSet().iterator();
+		while(itr.hasNext()) {
+			Double node = itr.next();
+			if(userGraph.degreeOf(node)==0)
+				System.out.println(userGraph.degreeOf(node));
+			
+		}
+		
+		
 	}
 }
