@@ -42,3 +42,5 @@ Experimental results
 *Prediction by user-based naive similarity: MAPE = 39.17479107428471%, RMSE = 1.431569107949076
 
 *Prediction by user-based similarity which is only rated both active user and community user: MAPE = 36.43034331528833%, RMSE = 1.2602018671656074
+
+*Prediction by user-based similarity which is only rated both active user and community user and integer: MAPE = 35.623875000002606%, RMSE = 1.2924057025562832
