@@ -5,11 +5,9 @@
 // Output: user id <tab> item id <tab> predicted rating
 
 import java.util.*;
-
-import org.jgrapht.graph.*;
-
-import Jama.Matrix;
 import java.io.*;
+import org.jgrapht.graph.*;
+import Jama.Matrix;
 
 public class Predict {
 	private static Matrix getMatrix(String fName) {
@@ -19,6 +17,7 @@ public class Predict {
 			String line;
 			BufferedReader reader = new BufferedReader(new FileReader(fName));
 			while((line = reader.readLine()) != null) {
+				if(line.length() < 2) continue;
 				StringTokenizer st = new StringTokenizer(line, "\t");
 				ArrayList<String> value = new ArrayList<String>();
 				while(st.hasMoreTokens()) {
@@ -69,7 +68,9 @@ public class Predict {
 	}
 
 	private static void printMatrix(Matrix matrix) {
+		System.out.println(matrix.getRowDimension()+"\t"+matrix.getColumnDimension());
 		for(int i = 0; i < matrix.getRowDimension(); i++) {
+			System.out.print(i+":\t");
 			for(int j = 0; j < matrix.getColumnDimension(); j++) {
 				System.out.print(matrix.get(i, j)+"\t");
 			}
@@ -120,46 +121,46 @@ public class Predict {
 		return genre;
 	}
 	
-	private static String getMinDist(Matrix mat, int row) {
-		double sim = Double.MAX_VALUE;
-		int item = 0;
-		
-		double sim2 = 0d;
-		int item2 = 0;
-		
-		for(int i = 0; i < mat.getRowDimension(); i++) {
-			double temp = 0d;
-			if(i != row) {
-				for(int j = 0; j < mat.getColumnDimension(); j++) {
-					temp += Math.pow(mat.get(row, j) - mat.get(i, j), 2);
+	private static Matrix getReleaseYear(TreeMap<Integer,ArrayList<String>> data) {
+		Iterator<Integer> itr = data.keySet().iterator();
+		double[][] temp = new double[data.keySet().size()][2];
+		int count = 0;
+		while(itr.hasNext()) {
+			int key = itr.next();
+			ArrayList<String> list = data.get(key);
+			
+			String str = list.get(0);
+//			System.out.println(count+":\t"+str);
+			if(str.equals("unknown")) {
+				temp[count][0] = 0d;
+			} else {
+				String[] arr = str.split("\\(");
+				String year = "";
+				for(int i = 0; i < arr.length; i++) {
+					String[] arr2 = arr[i].split("\\)");
+					for(int j = 0; j < arr2.length; j++) {
+						if(arr2[j].length()==4) {
+							year = arr2[j];
+						}
+					}
 				}
-				temp = Math.sqrt(temp);
-//				System.out.println(i + ": "+temp);
-				
-				
-				if(temp < sim) {
-					sim2 = sim;
-					item2 = item;
-					
-					sim = temp;
-					item = i+1;
-//					System.out.println("item: "+item+"\tsim = "+sim);
-				}
+				temp[count][0] = Double.parseDouble(year);
+//				System.out.println(temp[count][0]);
 			}
+		
+			str = list.get(1);
+			if (str.length() < 2) {
+				
+			} else {
+				String[] arr = str.split("-");
+				temp[count][1] = Double.parseDouble(arr[2]);
+//				System.out.println(temp[count][1]);
+			}
+			count++;
 		}
 		
-//		System.out.println("The most similar item with "+row+" is " + item +", and the similarity is " +sim);
-//		System.out.println();
-		
-		return item+","+sim+","+item2+","+sim2;
-	}
-	
-	private static void printMinDist(Matrix mat) {
-		for(int i = 0; i < mat.getRowDimension(); i++) {
-			String minDist = getMinDist(mat, i);
-			String[] arr = minDist.split(",");
-			System.out.println((i+1)+"-th row is similar with "+arr[0]+", and the similarity is "+arr[1]+".");
-		}
+		Matrix releaseYear = new Matrix(temp);
+		return releaseYear;
 	}
 	
 	private static Matrix getUserItem(Matrix mat) {
@@ -185,69 +186,363 @@ public class Predict {
 		return userItem;
 	}
 	
+	private static Matrix getMatrixMerge(Matrix releaseYear, Matrix genre) {
+		double[][] temp = new double[releaseYear.getRowDimension()+genre.getRowDimension()][releaseYear.getRowDimension()+genre.getColumnDimension()];
+
+		for(int i = 0; i < genre.getRowDimension(); i++) {
+			for(int j = 0; j < releaseYear.getColumnDimension(); j++) {
+				temp[i][j] = releaseYear.get(i, j);
+			}
+			for(int j = 0; j < genre.getColumnDimension(); j++) {
+//				System.out.print(genre.get(i, j)+"\t");
+				temp[i][j+2] = genre.get(i, j);
+			}
+//			System.out.println();
+		}
+		
+		Matrix mat = new Matrix(temp);
+		return mat;
+	}
+
+	private static double getCosineSimilarity(int activeUser, int dataUser, Matrix mat) {
+		double similarity = 0d;
+		
+		double AB = 0d;
+		double A = 0d;
+		double B = 0d;
+		
+		int count = 0;
+		for(int i = 0; i < mat.getColumnDimension(); i++) {
+			if(mat.get(activeUser-1, i)>0d && mat.get(dataUser, i)>0d) {
+				AB += mat.get(activeUser-1, i)*mat.get(dataUser, i);
+				A += Math.pow(mat.get(activeUser-1, i), 2);
+				B += Math.pow(mat.get(dataUser, i),2);
+				count++;
+			}
+		}
+		
+		A = Math.sqrt(A);
+		B = Math.sqrt(B);
+		
+		similarity = AB / (A*B);
+		if(count==0)similarity=0d;
+		return similarity;
+	}
+	
+	private static double getAdjCosSim(int activeItem, int dataItem, Matrix mat) {
+		double similarity = 0d;
+		
+		double AB = 0d;
+		double A = 0d;
+		double B = 0d;
+		
+		for(int i = 0; i < mat.getRowDimension(); i++) {
+			AB += mat.get(i, activeItem-1)*mat.get(i, dataItem);
+			A += Math.pow(mat.get(i, activeItem-1), 2);
+			B += Math.pow(mat.get(i, dataItem), 2);
+		}
+		
+		A = Math.sqrt(A);
+		B = Math.sqrt(B);
+		
+		similarity = AB / (A*B);
+		
+		return similarity;
+	}
+	
+	
+	private static void prediction(Matrix test, Matrix userItem) {
+		for(int i = 0; i < test.getRowDimension(); i++) {
+			int activeUser = (int)test.get(i, 0);
+			int itemID = (int)test.get(i, 1);
+						
+			double avgRatingA = 0d;
+			int count = 0;
+			for(int j = 0; j < userItem.getColumnDimension(); j++) {
+				if(userItem.get(activeUser-1, j)!=0d) {
+					avgRatingA += userItem.get(activeUser-1,j);
+					count++;
+				}
+			}
+			avgRatingA /= count;
+			
+			double sumSimilarity = 0d;
+			double sumSimRatingB = 0d;
+			for(int j = 0; j < userItem.getRowDimension(); j++) {
+				int dataUser = j;
+				if(activeUser-1 != j) {
+//					System.out.println(getCosineSimilarity(activeUser, dataUser, userItem));
+					sumSimilarity += getCosineSimilarity(activeUser, dataUser, userItem);
+					
+					double avgRatingB = 0d;
+					for(int k = 0; k < userItem.getColumnDimension(); k++) {
+						avgRatingB += userItem.get(j, k);
+					}
+					avgRatingB /= userItem.getColumnDimension();
+					
+					sumSimRatingB += getCosineSimilarity(activeUser, dataUser, userItem)*(avgRatingB-userItem.get(j, itemID-1));
+				}
+			}
+			
+			double pred = avgRatingA + sumSimRatingB / sumSimilarity;
+
+//			//test
+//			for(int j = 0; j < userItem.getColumnDimension(); j++) {
+//				System.out.print(userItem.get(activeUser-1, j)+"\t");
+//			}
+//			System.out.println();
+			System.out.println(activeUser+"\t"+itemID+"\t"+pred);
+		}
+	}
+	
+	private static void prediction(int activeUser, Matrix test, Matrix userItem) {
+		int itemID = (int)test.get(activeUser-1, 1);
+		
+		double avgRatingA = 0d;
+		int count = 0;
+		for(int j = 0; j < userItem.getColumnDimension(); j++) {
+			if(userItem.get(activeUser-1, j)!=0d) {
+				avgRatingA += userItem.get(activeUser-1,j);
+				count++;
+			}
+		}
+		avgRatingA /= count;
+		
+		double sumSimilarity = 0d;
+		double sumSimRatingB = 0d;
+		for(int j = 0; j < userItem.getRowDimension(); j++) {
+			int dataUser = j;
+			if(activeUser-1 != j) {
+//				System.out.println(getCosineSimilarity(activeUser, dataUser, userItem));
+				sumSimilarity += getCosineSimilarity(activeUser, dataUser, userItem);
+				
+				double avgRatingB = 0d;
+				for(int k = 0; k < userItem.getColumnDimension(); k++) {
+					avgRatingB += userItem.get(j, k);
+				}
+				avgRatingB /= userItem.getColumnDimension();
+				
+				sumSimRatingB += getCosineSimilarity(activeUser, dataUser, userItem)*(avgRatingB-userItem.get(j, itemID-1));
+			}
+		}
+		
+		double pred = avgRatingA + sumSimRatingB / sumSimilarity;
+
+//		//test
+//		for(int j = 0; j < userItem.getColumnDimension(); j++) {
+//			System.out.print(userItem.get(activeUser-1, j)+"\t");
+//		}
+//		System.out.println();
+		System.out.println(activeUser+"\t"+itemID+"\t"+pred);
+	}
+	
+	private static int prediction(int activeUser, int itemID, Matrix userItem) {
+		double avgRatingA = 0d;
+		int count = 0;
+		for(int j = 0; j < userItem.getColumnDimension(); j++) {
+			if(userItem.get(activeUser-1, j)!=0d) {
+				avgRatingA += userItem.get(activeUser-1,j);
+				count++;
+			}
+		}
+		avgRatingA /= count;
+		
+		double sumSimilarity = 0d;
+		double sumSimRatingB = 0d;
+		for(int j = 0; j < userItem.getRowDimension(); j++) {
+			int dataUser = j;
+			if(activeUser-1 != j) {
+//				System.out.println(getCosineSimilarity(activeUser, dataUser, userItem));
+				sumSimilarity += getCosineSimilarity(activeUser, dataUser, userItem);
+				
+				double avgRatingB = 0d;
+				for(int k = 0; k < userItem.getColumnDimension(); k++) {
+					avgRatingB += userItem.get(j, k);
+				}
+				avgRatingB /= userItem.getColumnDimension();
+				
+				sumSimRatingB += getCosineSimilarity(activeUser, dataUser, userItem)*(avgRatingB-userItem.get(j, itemID-1));
+			}
+		}
+		
+		double pred = avgRatingA + sumSimRatingB / sumSimilarity;
+
+//		//test
+//		for(int j = 0; j < userItem.getColumnDimension(); j++) {
+//			System.out.print(userItem.get(activeUser-1, j)+"\t");
+//		}
+//		System.out.println();
+		
+		int result = Math.round((float)pred);
+//		System.out.println(activeUser+"\t"+itemID+"\t"+result);
+		return result;
+	}
+	
+	private static double predictionItemD(int activeUser, int itemID, Matrix adjUserItem, Matrix userItem) {
+		double pred = 0d;
+		double sumSim = 0d;
+		double sumRatingSim = 0d;
+		
+		for(int i = 0; i < adjUserItem.getColumnDimension(); i++) {
+			if(userItem.get(activeUser-1,i) > 0d) {
+//				System.out.println(i+1+": "+userItem.get(activeUser-1,i));
+				double sim = getAdjCosSim(itemID, i, adjUserItem);
+				if(i != itemID-1) {
+					sumRatingSim = (sim*userItem.get(activeUser-1, i));
+					sumSim += sim;
+				}
+			}
+		}
+		
+		pred = sumRatingSim / sumSim;
+		return pred;
+	}
+	
+	private static double predictionD(int activeUser, int itemID, Matrix userItem) {
+		double avgRatingA = 0d;
+		int count = 0;
+		for(int j = 0; j < userItem.getColumnDimension(); j++) {
+			if(userItem.get(activeUser-1, j)!=0d) {
+				avgRatingA += userItem.get(activeUser-1,j);
+				count++;
+			}
+		}
+		avgRatingA /= count;
+		
+		double sumSimilarity = 0d;
+		double sumSimRatingB = 0d;
+		for(int j = 0; j < userItem.getRowDimension(); j++) {
+			int dataUser = j;
+			if(activeUser-1 != j) {
+//				System.out.println(getCosineSimilarity(activeUser, dataUser, userItem));
+				sumSimilarity += getCosineSimilarity(activeUser, dataUser, userItem);
+
+				double avgRatingB = 0d;
+				for(int k = 0; k < userItem.getColumnDimension(); k++) {
+					avgRatingB += userItem.get(j, k);
+				}
+				avgRatingB /= userItem.getColumnDimension();
+				
+				sumSimRatingB += getCosineSimilarity(activeUser, dataUser, userItem)*(avgRatingB-userItem.get(j, itemID-1));
+			}
+		}
+		
+		double pred = avgRatingA + sumSimRatingB / sumSimilarity;
+
+//		//test
+//		for(int j = 0; j < userItem.getColumnDimension(); j++) {
+//			System.out.print(userItem.get(activeUser-1, j)+"\t");
+//		}
+//		System.out.println();
+		
+		
+//		System.out.println(activeUser+"\t"+itemID+"\t"+result);
+		return pred;
+	}
+	
+	private static Matrix getAdjustedMatrix(Matrix mat) {
+		double[][] temp = new double[mat.getRowDimension()][mat.getColumnDimension()];
+		
+		for(int i = 0; i < mat.getRowDimension(); i++) {
+			double avg = 0d;
+			for(int j = 0; j < mat.getColumnDimension(); j++) {
+				avg += mat.get(i, j);
+			}
+			avg /= mat.getColumnDimension();
+			
+			double test = 0d;
+			for(int j = 0; j < mat.getColumnDimension(); j++) {
+				temp[i][j] = mat.get(i, j) - avg;
+				test += temp[i][j];
+			}
+			if(test > 0.0000000001)
+				System.out.println(test);
+		}
+		
+		Matrix adjMat = new Matrix(temp);
+		return adjMat;
+	}
+
 	public static void main(String[] args) {
 //		if(args.length != 6) {
 //			System.out.println("Usage: <# of users> <# of items> <matrix data file> <item info file> <user info file> <test file>");
 //			System.exit(1);
 //		}
 		
-		String file1 = "matrix.dat";	// "\t"
-		String file2 = "item.dat";	// "|"
-		String file3 = "user.dat";	// "|"
-		String file4 = "test.input";	// "\t"
+		String matrixDat = "matrix.dat";	// "\t"
+		String itemDat = "item.dat";	// "|"
+		String userDat = "user.dat";	// "|"
+		String testInput = "test.input";	// "\t"
 		
-		Matrix matrix = getMatrix(file1);
-		Matrix userItem = getUserItem(matrix);
+		Matrix matrix = getMatrix(matrixDat);
+		Matrix userItem = getUserItem(matrix); // user-item matrix
 		
-		Matrix test = getMatrix(file4);
-		TreeMap<Integer,ArrayList<String>> item = getData(file2);
-		TreeMap<Integer,ArrayList<String>> user = getData(file3);
+		Matrix test = getMatrix(testInput);
+		TreeMap<Integer,ArrayList<String>> item = getData(itemDat);
+		TreeMap<Integer,ArrayList<String>> user = getData(userDat);
 		
 		Matrix genre  = getGenre(item);
+		Matrix releaseYear = getReleaseYear(item);
 		
+		Matrix itemFeature = getMatrixMerge(releaseYear, genre);
+		
+		Matrix adjUserItem = getAdjustedMatrix(userItem);
+		
+//		printMatrix(adjUserItem);
 //		printMatrix(matrix);
 //		printMatrix(userItem);
 //		printMatrix(test);
 //		printData(item);
 //		printGenre(item);
+//		printMatrix(releaseYear);
+//		printMatrix(itemFeature);
 //		printData(user);
 //		printMatrix(genre);
 //		printMinDist(genre);
-//		printMinDist(userItem);
 		
-		SimpleWeightedGraph<Double,DefaultWeightedEdge> userGraph = new SimpleWeightedGraph<Double,DefaultWeightedEdge>(DefaultWeightedEdge.class);
-		for(int i = 0; i < userItem.getRowDimension(); i++) {
-//			System.out.println(getMinDist(userItem,i));
-			String[] arr = getMinDist(userItem,i).split(",");
+		// prediction by user-based similarity
+		// measurement: MAPE, RMSE
+		// DO THAT WITH ADJUSTED USER-ITEM MATRIX!!!!!!!!!!!!!!!!!!!!!!!!!
+		double mape = 0d;
+		double rmse = 0d;
+		for(int i = 0; i < matrix.getRowDimension(); i++) {
+			int real = (int)matrix.get(i, 2);
+			double pred = predictionD((int)matrix.get(i,0), (int)matrix.get(i,1), userItem);
+			mape += Math.abs(pred-(double)real)/(double)real;
+			rmse += Math.pow(pred-(double)real, 2);
 			
-			Double v1 = (double)(i+1);
-			Double v2 = Double.parseDouble(arr[0]);
-			Double w1 = Double.parseDouble(arr[1]);
-			userGraph.addVertex(v1);
-			userGraph.addVertex(v2);
-			userGraph.addEdge(v1, v2);
-			DefaultWeightedEdge e = userGraph.getEdge(v1, v2);
-			userGraph.setEdgeWeight(e, w1);
-			
-			Double v3 = Double.parseDouble(arr[2]);
-			Double w2 = Double.parseDouble(arr[3]);
-			userGraph.addVertex(v3);
-			userGraph.addEdge(v1, v3);
-			e = userGraph.getEdge(v1, v3);
-			userGraph.setEdgeWeight(e, w2);
+//			System.out.println((i+1)+"\t"+(int)matrix.get(i,1)+"\t"+real+"\t"+pred);
+			System.out.println(i+": mape now: "+Math.round((mape/(double)(i+1)*100))+"%");
 		}
+		mape /= matrix.getRowDimension();
+		rmse /= matrix.getRowDimension();
+		rmse = Math.sqrt(rmse);
 		
-		System.out.println("userGraph has "+userGraph.vertexSet().size()+" nodes.");
-		System.out.println("userGraph has "+userGraph.edgeSet().size()+" edges.");
+//		System.out.println((double)count / (double)matrix.getRowDimension());
+		System.out.println("mape: " + (mape*100.0)+"%");
+		System.out.println("rmse: "+ rmse);
+
 		
-		Iterator<Double> itr = userGraph.vertexSet().iterator();
-		while(itr.hasNext()) {
-			Double node = itr.next();
-			if(userGraph.degreeOf(node)==0)
-				System.out.println(userGraph.degreeOf(node));
-			
-		}
-		
-		
+		// prediction by item-based similarity
+		// measurement: MAPE, RMSE
+//		double mape = 0d;
+//		double rmse = 0d;
+//		for(int i = 0; i < matrix.getRowDimension(); i++) {
+//			int activeUser = (int)matrix.get(i, 0);
+//			int itemID = (int)matrix.get(i, 1);
+//			int real = (int)matrix.get(i, 2);
+//			double pred = predictionItemD(activeUser, itemID, adjUserItem, userItem);
+//			
+//			mape += Math.abs(pred-(double)real)/(double)real;
+//			rmse += Math.pow(pred-(double)real, 2);
+//			System.out.println(i+": mape now: "+((mape/(double)+1)*100)+"%");
+//			System.out.println(activeUser+"\t"+itemID+"\t"+real+"\t"+pred);
+//		}
+//		mape /= matrix.getRowDimension();
+//		rmse /= matrix.getRowDimension();
+//		rmse = Math.sqrt(rmse);
+//		
+//		System.out.println("mape: " + (mape*100.0)+"%");
+//		System.out.println("rmse: " + rmse);
 	}
 }
