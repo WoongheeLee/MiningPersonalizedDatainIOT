@@ -35,3 +35,8 @@ Submission
 *	Format: user id \<tab> item id
 *	Output
 *	Format: user id \<tab> item id \<tab> predicted rating
+
+
+Experimental results
+*Prediction by user-based naive similarity: MAPE = 39.17479107428471%, RMSE = 1.431569107949076
+*Prediction by user-based similarity which is only rated both active user and community user: MAPE = 36.43034331528833%, RMSE = 1.2602018671656074
