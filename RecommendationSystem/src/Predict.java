@@ -251,140 +251,140 @@ public class Predict {
 	}
 	
 	
-	private static void prediction(Matrix test, Matrix userItem) {
-		for(int i = 0; i < test.getRowDimension(); i++) {
-			int activeUser = (int)test.get(i, 0);
-			int itemID = (int)test.get(i, 1);
-						
-			double avgRatingA = 0d;
-			int count = 0;
-			for(int j = 0; j < userItem.getColumnDimension(); j++) {
-				if(userItem.get(activeUser-1, j)!=0d) {
-					avgRatingA += userItem.get(activeUser-1,j);
-					count++;
-				}
-			}
-			avgRatingA /= count;
-			
-			double sumSimilarity = 0d;
-			double sumSimRatingB = 0d;
-			for(int j = 0; j < userItem.getRowDimension(); j++) {
-				int dataUser = j;
-				if(activeUser-1 != j) {
-//					System.out.println(getCosineSimilarity(activeUser, dataUser, userItem));
-					sumSimilarity += getCosineSimilarity(activeUser, dataUser, userItem);
-					
-					double avgRatingB = 0d;
-					int countB = 0;
-					for(int k = 0; k < userItem.getColumnDimension(); k++) {
-						if(userItem.get(j, k)==0d)continue;
-						avgRatingB += userItem.get(j, k);
-						countB++;
-					}
-					avgRatingB /= countB; // userItem.getColumnDimension();
-					if(userItem.get(j, itemID-1) > 0d) {		
-						sumSimRatingB += getCosineSimilarity(activeUser, dataUser, userItem)*(avgRatingB-userItem.get(j, itemID-1));
-					}
-				}
-			}
-			
-			double pred = avgRatingA + sumSimRatingB / sumSimilarity;
-
-			System.out.println(activeUser+"\t"+itemID+"\t"+pred);
-		}
-	}
+//	private static void prediction(Matrix test, Matrix userItem) {
+//		for(int i = 0; i < test.getRowDimension(); i++) {
+//			int activeUser = (int)test.get(i, 0);
+//			int itemID = (int)test.get(i, 1);
+//						
+//			double avgRatingA = 0d;
+//			int count = 0;
+//			for(int j = 0; j < userItem.getColumnDimension(); j++) {
+//				if(userItem.get(activeUser-1, j)!=0d) {
+//					avgRatingA += userItem.get(activeUser-1,j);
+//					count++;
+//				}
+//			}
+//			avgRatingA /= count;
+//			
+//			double sumSimilarity = 0d;
+//			double sumSimRatingB = 0d;
+//			for(int j = 0; j < userItem.getRowDimension(); j++) {
+//				int dataUser = j;
+//				if(activeUser-1 != j) {
+////					System.out.println(getCosineSimilarity(activeUser, dataUser, userItem));
+//					sumSimilarity += getCosineSimilarity(activeUser, dataUser, userItem);
+//					
+//					double avgRatingB = 0d;
+//					int countB = 0;
+//					for(int k = 0; k < userItem.getColumnDimension(); k++) {
+//						if(userItem.get(j, k)==0d)continue;
+//						avgRatingB += userItem.get(j, k);
+//						countB++;
+//					}
+//					avgRatingB /= countB; // userItem.getColumnDimension();
+//					if(userItem.get(j, itemID-1) > 0d) {		
+//						sumSimRatingB += getCosineSimilarity(activeUser, dataUser, userItem)*(avgRatingB-userItem.get(j, itemID-1));
+//					}
+//				}
+//			}
+//			
+//			double pred = avgRatingA + sumSimRatingB / sumSimilarity;
+//
+//			System.out.println(activeUser+"\t"+itemID+"\t"+pred);
+//		}
+//	}
 	
-	private static void prediction(int activeUser, Matrix test, Matrix userItem) {
-		int itemID = (int)test.get(activeUser-1, 1);
-		
-		double avgRatingA = 0d;
-		int count = 0;
-		for(int j = 0; j < userItem.getColumnDimension(); j++) {
-			if(userItem.get(activeUser-1, j)!=0d) {
-				avgRatingA += userItem.get(activeUser-1,j);
-				count++;
-			}
-		}
-		avgRatingA /= count;
-		
-		double sumSimilarity = 0d;
-		double sumSimRatingB = 0d;
-		for(int j = 0; j < userItem.getRowDimension(); j++) {
-			int dataUser = j;
-			if(activeUser-1 != j) {
-//				System.out.println(getCosineSimilarity(activeUser, dataUser, userItem));
-				sumSimilarity += getCosineSimilarity(activeUser, dataUser, userItem);
-				
-				double avgRatingB = 0d;
-				for(int k = 0; k < userItem.getColumnDimension(); k++) {
-					avgRatingB += userItem.get(j, k);
-				}
-				avgRatingB /= userItem.getColumnDimension();
-				
-				sumSimRatingB += getCosineSimilarity(activeUser, dataUser, userItem)*(avgRatingB-userItem.get(j, itemID-1));
-			}
-		}
-		
-		double pred = avgRatingA + sumSimRatingB / sumSimilarity;
-
-		System.out.println(activeUser+"\t"+itemID+"\t"+pred);
-	}
+//	private static void prediction(int activeUser, Matrix test, Matrix userItem) {
+//		int itemID = (int)test.get(activeUser-1, 1);
+//		
+//		double avgRatingA = 0d;
+//		int count = 0;
+//		for(int j = 0; j < userItem.getColumnDimension(); j++) {
+//			if(userItem.get(activeUser-1, j)!=0d) {
+//				avgRatingA += userItem.get(activeUser-1,j);
+//				count++;
+//			}
+//		}
+//		avgRatingA /= count;
+//		
+//		double sumSimilarity = 0d;
+//		double sumSimRatingB = 0d;
+//		for(int j = 0; j < userItem.getRowDimension(); j++) {
+//			int dataUser = j;
+//			if(activeUser-1 != j) {
+////				System.out.println(getCosineSimilarity(activeUser, dataUser, userItem));
+//				sumSimilarity += getCosineSimilarity(activeUser, dataUser, userItem);
+//				
+//				double avgRatingB = 0d;
+//				for(int k = 0; k < userItem.getColumnDimension(); k++) {
+//					avgRatingB += userItem.get(j, k);
+//				}
+//				avgRatingB /= userItem.getColumnDimension();
+//				
+//				sumSimRatingB += getCosineSimilarity(activeUser, dataUser, userItem)*(avgRatingB-userItem.get(j, itemID-1));
+//			}
+//		}
+//		
+//		double pred = avgRatingA + sumSimRatingB / sumSimilarity;
+//
+//		System.out.println(activeUser+"\t"+itemID+"\t"+pred);
+//	}
 	
-	private static int prediction(int activeUser, int itemID, Matrix userItem) {
-		double avgRatingA = 0d;
-		int count = 0;
-		for(int j = 0; j < userItem.getColumnDimension(); j++) {
-			if(userItem.get(activeUser-1, j)!=0d) {
-				avgRatingA += userItem.get(activeUser-1,j);
-				count++;
-			}
-		}
-		avgRatingA /= count;
-		
-		double sumSimilarity = 0d;
-		double sumSimRatingB = 0d;
-		for(int j = 0; j < userItem.getRowDimension(); j++) {
-			int dataUser = j;
-			if(activeUser-1 != j) {
-//				System.out.println(getCosineSimilarity(activeUser, dataUser, userItem));
-				sumSimilarity += getCosineSimilarity(activeUser, dataUser, userItem);
-				
-				double avgRatingB = 0d;
-				for(int k = 0; k < userItem.getColumnDimension(); k++) {
-					avgRatingB += userItem.get(j, k);
-				}
-				avgRatingB /= userItem.getColumnDimension();
-				
-				sumSimRatingB += getCosineSimilarity(activeUser, dataUser, userItem)*(avgRatingB-userItem.get(j, itemID-1));
-			}
-		}
-		
-		double pred = avgRatingA + sumSimRatingB / sumSimilarity;
-
-		int result = Math.round((float)pred);
-//		System.out.println(activeUser+"\t"+itemID+"\t"+result);
-		return result;
-	}
+//	private static int prediction(int activeUser, int itemID, Matrix userItem) {
+//		double avgRatingA = 0d;
+//		int count = 0;
+//		for(int j = 0; j < userItem.getColumnDimension(); j++) {
+//			if(userItem.get(activeUser-1, j)!=0d) {
+//				avgRatingA += userItem.get(activeUser-1,j);
+//				count++;
+//			}
+//		}
+//		avgRatingA /= count;
+//		
+//		double sumSimilarity = 0d;
+//		double sumSimRatingB = 0d;
+//		for(int j = 0; j < userItem.getRowDimension(); j++) {
+//			int dataUser = j;
+//			if(activeUser-1 != j) {
+////				System.out.println(getCosineSimilarity(activeUser, dataUser, userItem));
+//				sumSimilarity += getCosineSimilarity(activeUser, dataUser, userItem);
+//				
+//				double avgRatingB = 0d;
+//				for(int k = 0; k < userItem.getColumnDimension(); k++) {
+//					avgRatingB += userItem.get(j, k);
+//				}
+//				avgRatingB /= userItem.getColumnDimension();
+//				
+//				sumSimRatingB += getCosineSimilarity(activeUser, dataUser, userItem)*(avgRatingB-userItem.get(j, itemID-1));
+//			}
+//		}
+//		
+//		double pred = avgRatingA + sumSimRatingB / sumSimilarity;
+//
+//		int result = Math.round((float)pred);
+////		System.out.println(activeUser+"\t"+itemID+"\t"+result);
+//		return result;
+//	}
 	
-	private static double predictionItemD(int activeUser, int itemID, Matrix adjUserItem, Matrix userItem) {
-		double pred = 0d;
-		double sumSim = 0d;
-		double sumRatingSim = 0d;
-		
-		for(int i = 0; i < adjUserItem.getColumnDimension(); i++) {
-			if(userItem.get(activeUser-1,i) > 0d) {
-//				System.out.println(i+1+": "+userItem.get(activeUser-1,i));
-				double sim = getAdjCosSim(itemID, i, adjUserItem);
-				if(i != itemID-1) {
-					sumRatingSim = (sim*userItem.get(activeUser-1, i));
-					sumSim += sim;
-				}
-			}
-		}
-		
-		pred = sumRatingSim / sumSim;
-		return pred;
-	}
+//	private static double predictionItemD(int activeUser, int itemID, Matrix adjUserItem, Matrix userItem) {
+//		double pred = 0d;
+//		double sumSim = 0d;
+//		double sumRatingSim = 0d;
+//		
+//		for(int i = 0; i < adjUserItem.getColumnDimension(); i++) {
+//			if(userItem.get(activeUser-1,i) > 0d) {
+////				System.out.println(i+1+": "+userItem.get(activeUser-1,i));
+//				double sim = getAdjCosSim(itemID, i, adjUserItem);
+//				if(i != itemID-1) {
+//					sumRatingSim = (sim*userItem.get(activeUser-1, i));
+//					sumSim += sim;
+//				}
+//			}
+//		}
+//		
+//		pred = sumRatingSim / sumSim;
+//		return pred;
+//	}
 	
 	private static double predictionD(int activeUser, int itemID, Matrix userItem) {
 		double avgRatingA = 0d;
@@ -403,8 +403,9 @@ public class Predict {
 		for(int j = 0; j < userItem.getRowDimension(); j++) {
 			int dataUser = j;
 			if(activeUser-1 != j) {
-//				System.out.println(getCosineSimilarity(activeUser, dataUser, userItem));
-				if(getCosineSimilarity(activeUser, dataUser, userItem) > 0.95) {
+//				System.out.println("cosine similarity:\t"+getCosineSimilarity(activeUser, dataUser, userItem));
+				if(getCosineSimilarity(activeUser, dataUser, userItem) > 0.9999) {
+//				if(userItem.get(dataUser, itemID-1) > 0d) {	// useless!!!
 					sumSimilarity += getCosineSimilarity(activeUser, dataUser, userItem);
 
 					double avgRatingB = 0d;
@@ -418,10 +419,14 @@ public class Predict {
 			}
 		}
 		
+		if(sumSimRatingB == 0d) {
+			return Math.random() * 5d;
+		}
+		
 		double pred = avgRatingA + sumSimRatingB / sumSimilarity;
 
-//		return Math.round(pred);
-		return pred;
+		return Math.round(pred);
+//		return pred;
 	}
 	
 	private static Matrix getAdjustedMatrix(Matrix mat) {
