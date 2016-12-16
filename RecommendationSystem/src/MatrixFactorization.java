@@ -1,23 +1,22 @@
-
+import java.math.*;
 import java.util.*;
 import java.io.*;
 import Jama.Matrix;
 
 
 public class MatrixFactorization {
+	final private static int k = 160;
+	final private static double ran = 0.305;
 
-	private static Matrix initialMatrix(Matrix P) {
-//		System.out.println("Row Col: "+P.getRowDimension()+ " " + P.getColumnDimension());
-		double[][] arrMat = new double[P.getRowDimension()][P.getColumnDimension()];
+	private static Matrix initialMatrix(Matrix M) {
+		double[][] arrMat = new double[M.getRowDimension()][M.getColumnDimension()];
 		
-		for(int i = 0; i < P.getRowDimension(); i++) {
-			for(int j = 0; j < P.getColumnDimension(); j++) {
+		for(int i = 0; i < M.getRowDimension(); i++) {
+			for(int j = 0; j < M.getColumnDimension(); j++) {
 //				System.out.println(i+" "+j);
-				double ran = Math.random();
-				
-				// because real R is very sparse! Real matrix is only 5% rated matrix.
-//				if(ran < 0.05) {
-					arrMat[i][j] = Math.random();
+
+//				if(ran < 0.99) {
+					arrMat[i][j] = Math.random() * ran;
 //				}
 			}
 		}
@@ -89,8 +88,8 @@ public class MatrixFactorization {
 
 		for(int i = 0; i < P.getRowDimension(); i++) {
 			for(int j = 0; j < sqrtE.getColumnDimension(); j++) {
-				for(int k = 0; k < P.getColumnDimension(); k++) {
-					if(R.get(i, j) > 0d) {
+				if(R.get(i, j) > 0d) {
+					for(int k = 0; k < P.getColumnDimension(); k++) {
 						tempP[i][k] = P.get(i, k) + alpha * (2 * sqrtE.get(i,j) * Q.get(k,j) - beta * P.get(i, k));
 					}
 				}
@@ -133,10 +132,12 @@ public class MatrixFactorization {
 	}
 	
 	public static void main(String[] args) {
+		double time = System.currentTimeMillis();
+		
 		// Matrix Factorization parameters
-		int k = 10; 
+//		int k = 80; 
 		double alpha = 0.00002;
-		double beta = 0.000002;
+		double beta = 0.00002;
 		
 		String matrixDat = "matrix.dat";	// "\t"
 //		String itemDat = "item.dat";	// "|"
@@ -241,5 +242,6 @@ public class MatrixFactorization {
 		System.out.println("MAPE: "+mape);
 		
 		GetFile.writeFile(result, "result");
+		System.out.println("program done. "+(System.currentTimeMillis()-time)+" ms");
 	}
 }

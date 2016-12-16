@@ -396,16 +396,13 @@ public class Predict {
 			}
 		}
 		avgRatingA /= count;
-//		System.out.println(avgRatingA);
 		
 		double sumSimilarity = 0d;
 		double sumSimRatingB = 0d;
 		for(int j = 0; j < userItem.getRowDimension(); j++) {
 			int dataUser = j;
 			if(activeUser-1 != j) {
-//				System.out.println("cosine similarity:\t"+getCosineSimilarity(activeUser, dataUser, userItem));
-				if(getCosineSimilarity(activeUser, dataUser, userItem) > 0.9999) {
-//				if(userItem.get(dataUser, itemID-1) > 0d) {	// useless!!!
+				if(getCosineSimilarity(activeUser, dataUser, userItem) > 0.99999999) {
 					sumSimilarity += getCosineSimilarity(activeUser, dataUser, userItem);
 
 					double avgRatingB = 0d;
@@ -420,13 +417,14 @@ public class Predict {
 		}
 		
 		if(sumSimRatingB == 0d) {
-			return Math.random() * 5d;
+			System.out.println(activeUser+" is 0");
+			return Math.random() * 4d+1;
 		}
 		
 		double pred = avgRatingA + sumSimRatingB / sumSimilarity;
 
-		return Math.round(pred);
-//		return pred;
+//		return Math.round(pred);
+		return pred;
 	}
 	
 	private static Matrix getAdjustedMatrix(Matrix mat) {
