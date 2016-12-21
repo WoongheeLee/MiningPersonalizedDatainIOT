@@ -1,516 +1,448 @@
-// Lee, Woonghee
-// Deadline: Dec, 23rd
-// Given: user-item matrix, item data, user data
-// Goal: prediction user-item
-// Output: user id <tab> item id <tab> predicted rating
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.StringTokenizer;
+import java.util.TreeMap;
 
-import java.util.*;
-import java.io.*;
-import org.jgrapht.graph.*;
 import Jama.Matrix;
 
-public class Predict {
-	private static Matrix getMatrix(String fName) {
-		TreeMap<Integer, ArrayList<String>> temp = new TreeMap<Integer, ArrayList<String>>();
-		int key = 0;
-		try {
-			String line;
-			BufferedReader reader = new BufferedReader(new FileReader(fName));
-			while((line = reader.readLine()) != null) {
-				if(line.length() < 2) continue;
-				StringTokenizer st = new StringTokenizer(line, "\t");
-				ArrayList<String> value = new ArrayList<String>();
-				while(st.hasMoreTokens()) {
-					value.add(st.nextToken());
+public class Predict{
+	final private static int k = 250;
+	final private static double ran = 0.00001d;
+	
+	private static Matrix initialMatrix(Matrix M) {
+		double[][] arrMat = new double[M.getRowDimension()][M.getColumnDimension()];
+		
+		for(int i = 0; i < M.getRowDimension(); i++) {
+			for(int j = 0; j < M.getColumnDimension(); j++) {
+//				System.out.println(i+" "+j);
+				
+				double pm = Math.random();
+				if(pm > 0.5) {
+					arrMat[i][j] = Math.random() * ran;
+				} else {
+					arrMat[i][j] = Math.random() * ran * (-1.0);
 				}
-				temp.put(key++, value);
+				
 			}
-		} catch (IOException e) {
-			e.printStackTrace();
-			System.exit(1);
 		}
 		
-		double[][] array = new double[temp.keySet().size()][temp.get(0).size()];
-		for(int i = 0; i < key; i++) {
-			for(int j = 0; j < temp.get(0).size(); j++) {
-				array[i][j] = Double.parseDouble(temp.get(i).get(j));
-//				System.out.print(array[i][j]+"\t");
-			}
-//			System.out.println();
-		}
-		Matrix mat = new Matrix(array);
+		Matrix mat = new Matrix(arrMat);
 		return mat;
 	}
 	
-	private static TreeMap<Integer,ArrayList<String>> getData(String fName) {
-		TreeMap<Integer,ArrayList<String>> data = new TreeMap<Integer,ArrayList<String>>();
-		
-		try {
-			String line;
-			BufferedReader reader = new BufferedReader(new FileReader(fName));
-			while((line = reader.readLine()) != null) {
-				StringTokenizer st = new StringTokenizer(line, "|");
-				int key = Integer.parseInt(st.nextToken());
+	private static Matrix getErrorSquare1(Matrix R, Matrix R_) {
+//		System.out.println(R.getRowDimension()+" "+R.getColumnDimension());
+		double[][] arr = new double[R.getRowDimension()][R.getColumnDimension()];
 				
-				ArrayList<String> value = new ArrayList<String>();
-				while(st.hasMoreTokens()) {
-					value.add(st.nextToken());
-				}
-				
-				data.put(key, value);
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-			System.exit(1);
-		}
-		
-		return data;
-	}
-
-	private static void printMatrix(Matrix matrix) {
-		System.out.println(matrix.getRowDimension()+"\t"+matrix.getColumnDimension());
-		for(int i = 0; i < matrix.getRowDimension(); i++) {
-			System.out.print(i+":\t");
-			for(int j = 0; j < matrix.getColumnDimension(); j++) {
-				System.out.print(matrix.get(i, j)+"\t");
-			}
-			System.out.println();
-		}
-		System.out.println("This matrix has "+matrix.getRowDimension()+" rows and "+matrix.getColumnDimension()+" columns.");
-	}
-	
-	private static void printData(TreeMap<Integer,ArrayList<String>> data) {
-		Iterator<Integer> itr = data.keySet().iterator();
-		while(itr.hasNext()) {
-			int key = itr.next();
-			System.out.println(key+"\t"+data.get(key));
-		}
-		System.out.println("This data has "+data.keySet().size()+" tuples.");
-	}
-	
-	private static void printGenre(TreeMap<Integer,ArrayList<String>> data) {
-		Iterator<Integer> itr = data.keySet().iterator();
-		while(itr.hasNext()) {
-			int key = itr.next();
-			ArrayList<String> list = data.get(key);
-			for(int i = 3; i < list.size(); i++) {
-				System.out.print(list.get(i)+"\t");
-			}
-			System.out.println();
-		}
-	}
-	
-	private static Matrix getGenre(TreeMap<Integer,ArrayList<String>> data) {
-		Iterator<Integer> itr = data.keySet().iterator();
-		double[][] temp = new double[data.keySet().size()][data.get(1).size()-3];
-//		System.out.println(data.get(1).size()-3);
-		int count = 0;
-		while(itr.hasNext()) {
-			int key = itr.next();
-			ArrayList<String> list = data.get(key);
-			for(int i = 3; i < list.size(); i++) {
-//				System.out.print(temp[count][i-3]+"\t");
-//				System.out.print(i-3+"\t");
-				temp[count][i-3] = Double.parseDouble(list.get(i));
-			}
-//			System.out.println();
-			count++;
-		}
-		
-		Matrix genre = new Matrix(temp);
-		return genre;
-	}
-	
-	private static Matrix getReleaseYear(TreeMap<Integer,ArrayList<String>> data) {
-		Iterator<Integer> itr = data.keySet().iterator();
-		double[][] temp = new double[data.keySet().size()][2];
-		int count = 0;
-		while(itr.hasNext()) {
-			int key = itr.next();
-			ArrayList<String> list = data.get(key);
-			
-			String str = list.get(0);
-//			System.out.println(count+":\t"+str);
-			if(str.equals("unknown")) {
-				temp[count][0] = 0d;
-			} else {
-				String[] arr = str.split("\\(");
-				String year = "";
-				for(int i = 0; i < arr.length; i++) {
-					String[] arr2 = arr[i].split("\\)");
-					for(int j = 0; j < arr2.length; j++) {
-						if(arr2[j].length()==4) {
-							year = arr2[j];
-						}
-					}
-				}
-				temp[count][0] = Double.parseDouble(year);
-//				System.out.println(temp[count][0]);
-			}
-		
-			str = list.get(1);
-			if (str.length() < 2) {
-				
-			} else {
-				String[] arr = str.split("-");
-				temp[count][1] = Double.parseDouble(arr[2]);
-//				System.out.println(temp[count][1]);
-			}
-			count++;
-		}
-		
-		Matrix releaseYear = new Matrix(temp);
-		return releaseYear;
-	}
-	
-	private static Matrix getUserItem(Matrix mat) {
-		double M = 0;
-		double N = 0;
-		for(int i = 0; i < mat.getRowDimension(); i++) {
-			if(M < mat.get(i, 0)) {
-				M = mat.get(i, 0);
-			}
-			if(N < mat.get(i, 1)) {
-				N = mat.get(i, 1);
+		for(int i = 0; i < R.getRowDimension(); i++) {
+			for(int j = 0; j < R.getColumnDimension(); j++) {
+//				System.out.println(i+ " " + j);
+				arr[i][j] = Math.pow(R.get(i, j) - R_.get(i, j),2);
 			}
 		}
 		
-		double[][] temp = new double[(int)M][(int)N];
-		for(int i = 0; i < mat.getRowDimension(); i++) {
-			temp[(int)mat.get(i,0)-1][(int)mat.get(i,1)-1] = mat.get(i, 2);
-//			System.out.println((mat.get(i, 0)-1) + "\t"+(mat.get(i, 1)-1)+"\t"+mat.get(i, 2));
-		}
-		
-		Matrix userItem = new Matrix(temp);
-//		System.out.println(userItem.getRowDimension()+ "\t"+ userItem.getColumnDimension());
-		return userItem;
-	}
-	
-	private static Matrix getMatrixMerge(Matrix releaseYear, Matrix genre) {
-		double[][] temp = new double[releaseYear.getRowDimension()+genre.getRowDimension()][releaseYear.getRowDimension()+genre.getColumnDimension()];
-
-		for(int i = 0; i < genre.getRowDimension(); i++) {
-			for(int j = 0; j < releaseYear.getColumnDimension(); j++) {
-				temp[i][j] = releaseYear.get(i, j);
-			}
-			for(int j = 0; j < genre.getColumnDimension(); j++) {
-//				System.out.print(genre.get(i, j)+"\t");
-				temp[i][j+2] = genre.get(i, j);
-			}
-//			System.out.println();
-		}
-		
-		Matrix mat = new Matrix(temp);
+		Matrix mat = new Matrix(arr);
 		return mat;
 	}
-
-	private static double getCosineSimilarity(int activeUser, int dataUser, Matrix mat) {
-		double similarity = 0d;
+	
+	private static Matrix getErrorSquare(double beta, Matrix tempE, Matrix P, Matrix Q, Double[] uBias, Double[] iBias) {
+		double[][] arr = new double[tempE.getRowDimension()][tempE.getColumnDimension()];
 		
-		double AB = 0d;
-		double A = 0d;
-		double B = 0d;
+		double norm = (beta/2.0) * (P.norm2() + Q.norm2());
 		
-		int count = 0;
-		for(int i = 0; i < mat.getColumnDimension(); i++) {
-			if(mat.get(activeUser-1, i)>0d && mat.get(dataUser, i)>0d) {
-				AB += mat.get(activeUser-1, i)*mat.get(dataUser, i);
-				A += Math.pow(mat.get(activeUser-1, i), 2);
-				B += Math.pow(mat.get(dataUser, i),2);
-				count++;
+		for(int i = 0; i < tempE.getRowDimension(); i++) {
+			for(int j = 0; j < tempE.getColumnDimension(); j++) {
+//				System.out.println(i+" " +j);
+				arr[i][j] = tempE.get(i, j) + norm + (beta/2.0) * (Math.pow(uBias[i], 2) + Math.pow(iBias[j], 2));
 			}
 		}
 		
-		A = Math.sqrt(A);
-		B = Math.sqrt(B);
-		
-		similarity = AB / (A*B);
-		if(count==0)similarity=0d;
-		return similarity;
+		Matrix mat = new Matrix(arr);
+		return mat;
 	}
 	
-	private static double getAdjCosSim(int activeItem, int dataItem, Matrix mat) {
-		double similarity = 0d;
+	private static double getError(Matrix R, Matrix E) {
+		double error = 0d;
 		
-		double AB = 0d;
-		double A = 0d;
-		double B = 0d;
-		
-		for(int i = 0; i < mat.getRowDimension(); i++) {
-			AB += mat.get(i, activeItem-1)*mat.get(i, dataItem);
-			A += Math.pow(mat.get(i, activeItem-1), 2);
-			B += Math.pow(mat.get(i, dataItem), 2);
-		}
-		
-		A = Math.sqrt(A);
-		B = Math.sqrt(B);
-		
-		similarity = AB / (A*B);
-		
-		return similarity;
-	}
-	
-	
-//	private static void prediction(Matrix test, Matrix userItem) {
-//		for(int i = 0; i < test.getRowDimension(); i++) {
-//			int activeUser = (int)test.get(i, 0);
-//			int itemID = (int)test.get(i, 1);
-//						
-//			double avgRatingA = 0d;
-//			int count = 0;
-//			for(int j = 0; j < userItem.getColumnDimension(); j++) {
-//				if(userItem.get(activeUser-1, j)!=0d) {
-//					avgRatingA += userItem.get(activeUser-1,j);
-//					count++;
-//				}
-//			}
-//			avgRatingA /= count;
-//			
-//			double sumSimilarity = 0d;
-//			double sumSimRatingB = 0d;
-//			for(int j = 0; j < userItem.getRowDimension(); j++) {
-//				int dataUser = j;
-//				if(activeUser-1 != j) {
-////					System.out.println(getCosineSimilarity(activeUser, dataUser, userItem));
-//					sumSimilarity += getCosineSimilarity(activeUser, dataUser, userItem);
-//					
-//					double avgRatingB = 0d;
-//					int countB = 0;
-//					for(int k = 0; k < userItem.getColumnDimension(); k++) {
-//						if(userItem.get(j, k)==0d)continue;
-//						avgRatingB += userItem.get(j, k);
-//						countB++;
-//					}
-//					avgRatingB /= countB; // userItem.getColumnDimension();
-//					if(userItem.get(j, itemID-1) > 0d) {		
-//						sumSimRatingB += getCosineSimilarity(activeUser, dataUser, userItem)*(avgRatingB-userItem.get(j, itemID-1));
-//					}
-//				}
-//			}
-//			
-//			double pred = avgRatingA + sumSimRatingB / sumSimilarity;
-//
-//			System.out.println(activeUser+"\t"+itemID+"\t"+pred);
-//		}
-//	}
-	
-//	private static void prediction(int activeUser, Matrix test, Matrix userItem) {
-//		int itemID = (int)test.get(activeUser-1, 1);
-//		
-//		double avgRatingA = 0d;
-//		int count = 0;
-//		for(int j = 0; j < userItem.getColumnDimension(); j++) {
-//			if(userItem.get(activeUser-1, j)!=0d) {
-//				avgRatingA += userItem.get(activeUser-1,j);
-//				count++;
-//			}
-//		}
-//		avgRatingA /= count;
-//		
-//		double sumSimilarity = 0d;
-//		double sumSimRatingB = 0d;
-//		for(int j = 0; j < userItem.getRowDimension(); j++) {
-//			int dataUser = j;
-//			if(activeUser-1 != j) {
-////				System.out.println(getCosineSimilarity(activeUser, dataUser, userItem));
-//				sumSimilarity += getCosineSimilarity(activeUser, dataUser, userItem);
-//				
-//				double avgRatingB = 0d;
-//				for(int k = 0; k < userItem.getColumnDimension(); k++) {
-//					avgRatingB += userItem.get(j, k);
-//				}
-//				avgRatingB /= userItem.getColumnDimension();
-//				
-//				sumSimRatingB += getCosineSimilarity(activeUser, dataUser, userItem)*(avgRatingB-userItem.get(j, itemID-1));
-//			}
-//		}
-//		
-//		double pred = avgRatingA + sumSimRatingB / sumSimilarity;
-//
-//		System.out.println(activeUser+"\t"+itemID+"\t"+pred);
-//	}
-	
-//	private static int prediction(int activeUser, int itemID, Matrix userItem) {
-//		double avgRatingA = 0d;
-//		int count = 0;
-//		for(int j = 0; j < userItem.getColumnDimension(); j++) {
-//			if(userItem.get(activeUser-1, j)!=0d) {
-//				avgRatingA += userItem.get(activeUser-1,j);
-//				count++;
-//			}
-//		}
-//		avgRatingA /= count;
-//		
-//		double sumSimilarity = 0d;
-//		double sumSimRatingB = 0d;
-//		for(int j = 0; j < userItem.getRowDimension(); j++) {
-//			int dataUser = j;
-//			if(activeUser-1 != j) {
-////				System.out.println(getCosineSimilarity(activeUser, dataUser, userItem));
-//				sumSimilarity += getCosineSimilarity(activeUser, dataUser, userItem);
-//				
-//				double avgRatingB = 0d;
-//				for(int k = 0; k < userItem.getColumnDimension(); k++) {
-//					avgRatingB += userItem.get(j, k);
-//				}
-//				avgRatingB /= userItem.getColumnDimension();
-//				
-//				sumSimRatingB += getCosineSimilarity(activeUser, dataUser, userItem)*(avgRatingB-userItem.get(j, itemID-1));
-//			}
-//		}
-//		
-//		double pred = avgRatingA + sumSimRatingB / sumSimilarity;
-//
-//		int result = Math.round((float)pred);
-////		System.out.println(activeUser+"\t"+itemID+"\t"+result);
-//		return result;
-//	}
-	
-//	private static double predictionItemD(int activeUser, int itemID, Matrix adjUserItem, Matrix userItem) {
-//		double pred = 0d;
-//		double sumSim = 0d;
-//		double sumRatingSim = 0d;
-//		
-//		for(int i = 0; i < adjUserItem.getColumnDimension(); i++) {
-//			if(userItem.get(activeUser-1,i) > 0d) {
-////				System.out.println(i+1+": "+userItem.get(activeUser-1,i));
-//				double sim = getAdjCosSim(itemID, i, adjUserItem);
-//				if(i != itemID-1) {
-//					sumRatingSim = (sim*userItem.get(activeUser-1, i));
-//					sumSim += sim;
-//				}
-//			}
-//		}
-//		
-//		pred = sumRatingSim / sumSim;
-//		return pred;
-//	}
-	
-	private static double predictionD(int activeUser, int itemID, Matrix userItem) {
-		double avgRatingA = 0d;
-		int count = 0;
-		for(int j = 0; j < userItem.getColumnDimension(); j++) {
-			if(userItem.get(activeUser-1, j)!=0d) {
-				avgRatingA += userItem.get(activeUser-1,j);
-				count++;
-			}
-		}
-		avgRatingA /= count;
-		
-		double sumSimilarity = 0d;
-		double sumSimRatingB = 0d;
-		for(int j = 0; j < userItem.getRowDimension(); j++) {
-			int dataUser = j;
-			if(activeUser-1 != j) {
-				if(getCosineSimilarity(activeUser, dataUser, userItem) > 0.99999999) {
-					sumSimilarity += getCosineSimilarity(activeUser, dataUser, userItem);
-
-					double avgRatingB = 0d;
-					for(int k = 0; k < userItem.getColumnDimension(); k++) {
-						avgRatingB += userItem.get(j, k);
-					}
-					avgRatingB /= userItem.getColumnDimension();
-					
-					sumSimRatingB += getCosineSimilarity(activeUser, dataUser, userItem)*(avgRatingB-userItem.get(j, itemID-1));
+		for(int i = 0; i < E.getRowDimension(); i++) {
+			for(int j = 0; j < E.getColumnDimension(); j++) {
+				if(R.get(i, j) > 0d) {
+					error += E.get(i, j);
 				}
 			}
 		}
 		
-		if(sumSimRatingB == 0d) {
-			System.out.println(activeUser+" is 0");
-			return Math.random() * 4d+1;
-		}
-		
-		double pred = avgRatingA + sumSimRatingB / sumSimilarity;
-
-//		return Math.round(pred);
-		return pred;
+		return error;
 	}
 	
-	private static Matrix getAdjustedMatrix(Matrix mat) {
-		double[][] temp = new double[mat.getRowDimension()][mat.getColumnDimension()];
+	private static Matrix getSqrtE(Matrix E) {
+		double[][] arr = new double[E.getRowDimension()][E.getColumnDimension()];
 		
-		for(int i = 0; i < mat.getRowDimension(); i++) {
-			double avg = 0d;
-			for(int j = 0; j < mat.getColumnDimension(); j++) {
-				avg += mat.get(i, j);
+		for(int i = 0; i < E.getRowDimension(); i++) {
+			for(int j = 0; j < E.getColumnDimension(); j++) {
+				arr[i][j] = Math.sqrt(E.get(i, j));
 			}
-			avg /= mat.getColumnDimension();
-			
-			double test = 0d;
-			for(int j = 0; j < mat.getColumnDimension(); j++) {
-				temp[i][j] = mat.get(i, j) - avg;
-				test += temp[i][j];
-			}
-			if(test > 0.0000000001)
-				System.out.println(test);
 		}
 		
-		Matrix adjMat = new Matrix(temp);
-		return adjMat;
+		Matrix mat = new Matrix(arr);
+		return mat;
 	}
+	
+	private static double getGlobalAverage(Matrix R) { 
+		double mu = 0d;
+		int count = 0;
+		
+		for(int i = 0; i < R.getRowDimension(); i++) {
+			for(int j = 0; j < R.getColumnDimension(); j++) {
+				if(R.get(i, j) > 0d) {
+					count++;
+					mu += R.get(i, j);
+				}
+			}
+		}
+		
+		mu /= (double) count;
+		
+		return mu;
+	}
+	
+	private static Matrix updateP(double alpha, double beta, Matrix sqrtE, Matrix P, Matrix Q, Matrix R) {
+		double[][] tempP = new double[P.getRowDimension()][P.getColumnDimension()];
 
+		for(int i = 0; i < P.getRowDimension(); i++) {
+			for(int j = 0; j < sqrtE.getColumnDimension(); j++) {
+				if(R.get(i, j) > 0d) {
+					for(int k = 0; k < P.getColumnDimension(); k++) {
+						tempP[i][k] = P.get(i, k) + alpha * (2 * sqrtE.get(i,j) * Q.get(k,j) - beta * P.get(i, k));
+					}
+				}
+			}
+		}
+		
+		Matrix newP = new Matrix(tempP);
+		return newP;
+	}
+	
+	private static Matrix updateQ(double alpha, double beta, Matrix sqrtE, Matrix P, Matrix Q, Matrix R) {
+		double[][] tempQ = new double[Q.getRowDimension()][Q.getColumnDimension()];
+		
+		
+		for(int j = 0; j < Q.getColumnDimension(); j++) {
+			for(int i = 0; i < sqrtE.getRowDimension(); i++) {
+				if(R.get(i, j) > 0d) { 
+					for(int k = 0; k < Q.getRowDimension(); k++) {
+						tempQ[k][j] = Q.get(k, j) + alpha * (2 * sqrtE.get(i, j) * P.get(i, k) - beta * Q.get(k, j));
+					}
+				}				
+			}
+		}
+		
+		Matrix newQ = new Matrix(tempQ);
+		return newQ;
+	}
+	
+	private static Matrix setMatrix(Matrix M) {
+		double[][] arr = new double[M.getRowDimension()][M.getColumnDimension()];
+		
+		for(int i = 0; i < M.getRowDimension(); i++) {
+			for(int j = 0; j < M.getColumnDimension(); j++) {
+				arr[i][j] = M.get(i, j);
+			}
+		}
+		
+		Matrix mat = new Matrix(arr);
+		return mat;
+	}
+	
+	private static Double[] initArray(Double[] arr) {
+		for(int i = 0; i < arr.length; i++) {
+			arr[i] = 0d;
+		}
+		
+		return arr;
+	}
+	
+	private static Double[] getUserBias(Matrix R, double globalMu) {
+		Double[] uTemp = new Double[R.getRowDimension()];
+		uTemp = initArray(uTemp);
+		
+		for(int i = 0; i < R.getRowDimension(); i++) {
+			int count = 0;
+			for(int j = 0; j < R.getColumnDimension(); j++) {
+				if(R.get(i, j)>0d) {
+					uTemp[i] += R.get(i, j);
+					count++;
+				}
+			}
+			uTemp[i] /= (double) count;
+			uTemp[i] -= globalMu;
+		}
+		
+		return uTemp;
+	}
+	
+	private static Double[] getItemBias(Matrix R, double globalMu) {
+		Double[] iTemp = new Double[R.getColumnDimension()];
+		iTemp = initArray(iTemp);
+		
+		for(int j = 0; j < R.getColumnDimension(); j++) {
+			int count = 0;
+			for(int i = 0; i < R.getRowDimension(); i++) {
+				if(R.get(i, j)>0d) {
+					iTemp[j] += R.get(i, j);
+					count++;
+				}
+			}
+			iTemp[j] /= (double) count;
+			iTemp[j] -= globalMu;
+			if(count==0d) {
+//				System.out.println("count is " + count);
+//				System.exit(1);
+				iTemp[j] = 0d;
+			}
+		}
+		
+		return iTemp;
+	}
+	
+	private static void printArray(Object[] arr) {
+		for(int i = 0; i < arr.length; i++) {
+			System.out.println(arr[i]);
+		}
+	}
+	
+	private static Matrix addBias(Matrix R_, Double[] uBias, Double[] iBias, double globalMu) {
+		double[][] temp = new double[R_.getRowDimension()][R_.getColumnDimension()];
+		
+		for(int i = 0; i < R_.getRowDimension(); i++) {
+			for(int j = 0; j < R_.getColumnDimension(); j++) {
+				temp[i][j] += R_.get(i,j) + uBias[i] + iBias[j] + globalMu;
+//				System.out.println(R_.get(i, j)+"\t"+uBias[i]+"\t"+iBias[j]+"\t"+globalMu);
+			}
+		}
+		
+		Matrix updatedR_ = new Matrix(temp);
+		return updatedR_;
+	}
+	
+	private static Matrix getRoundMatrix(Matrix R_) {
+		double[][] temp = new double[R_.getRowDimension()][R_.getColumnDimension()];
+		
+		for(int i = 0; i < R_.getRowDimension(); i++) {
+			for(int j = 0; j < R_.getColumnDimension(); j++) {
+				if(R_.get(i, j) < 0d) {
+					temp[i][j] = 0d;
+				} else {
+					temp[i][j] = R_.get(i, j);
+				}
+			}
+		}
+		
+		Matrix newR_ = new Matrix(temp);
+		return newR_;
+	}
+	
+	private static String[][] doubleToString(double[][] arr) {
+		String[][] str = new String[arr.length][arr[0].length];
+		
+		for(int i = 0; i < arr.length; i++) {
+			str[i][0] = Integer.toString((int)arr[i][0]);
+			str[i][1] = Integer.toString((int)arr[i][1]);
+			str[i][2] = Double.toString(arr[i][2]);
+		}
+		
+		return str;
+	}
+	
 	public static void main(String[] args) {
-//		if(args.length != 6) {
-//			System.out.println("Usage: <# of users> <# of items> <matrix data file> <item info file> <user info file> <test file>");
-//			System.exit(1);
-//		}
-		
-		String matrixDat = "matrix.dat";	// "\t"
-		String itemDat = "item.dat";	// "|"
-		String userDat = "user.dat";	// "|"
-		String testInput = "test.input";	// "\t"
-		String testAnswer = "real.test";	// "\t"
-		
-		Matrix matrix = getMatrix(matrixDat);
-		Matrix userItem = getUserItem(matrix); // user-item matrix
-		
-		Matrix test = getMatrix(testInput);
-		TreeMap<Integer,ArrayList<String>> item = getData(itemDat);
-		TreeMap<Integer,ArrayList<String>> user = getData(userDat);
-		
-		Matrix genre  = getGenre(item);
-		Matrix releaseYear = getReleaseYear(item);
-		
-		Matrix itemFeature = getMatrixMerge(releaseYear, genre);
-		
-		Matrix adjUserItem = getAdjustedMatrix(userItem);
-		
-		Matrix testCorrect = getMatrix(testAnswer);
-		
-//		printMatrix(adjUserItem);
-//		printMatrix(matrix);
-//		printMatrix(userItem);
-//		printMatrix(test);
-//		printData(item);
-//		printGenre(item);
-//		printMatrix(releaseYear);
-//		printMatrix(itemFeature);
-//		printData(user);
-//		printMatrix(genre);
-//		printMinDist(genre);
-		
-		// prediction by user-based similarity
-		// measurement: MAPE, RMSE
-		// DO THAT WITH ADJUSTED USER-ITEM MATRIX!!!!!!!!!!!!!!!!!!!!!!!!!
-		double mape = 0d;
-		double rmse = 0d;
-		for(int i = 0; i < testCorrect.getRowDimension(); i++) {
-			int real = (int)testCorrect.get(i, 2);
-			double pred = predictionD((int)testCorrect.get(i,0), (int)testCorrect.get(i,1), userItem);
-			mape += Math.abs(pred-(double)real)/(double)real;
-			rmse += Math.pow(pred-(double)real, 2);
-			
-//			System.out.println((i+1)+"\t"+(int)matrix.get(i,1)+"\t"+real+"\t"+pred);
-			System.out.println(i+": mape now: "+Math.round((mape/(double)(i+1)*100))+"%");
+		if(args.length != 6) {
+			System.out.println("Input arguments errror!");
+			System.out.println("Usage: <# of users> <# of items> <matrix data file> <item info file> <user info file> <test file>");
+			System.exit(1);
 		}
-		mape /= testCorrect.getRowDimension();
-		rmse /= testCorrect.getRowDimension();
-		rmse = Math.sqrt(rmse);
 		
-//		System.out.println((double)count / (double)matrix.getRowDimension());
-		System.out.println("mape: " + (mape*100.0)+"%");
-		System.out.println("rmse: "+ rmse);
+		// required arguments
+		String numOfUsers = args[0];
+		String numOfItems = args[1];
+		String matrixDat = args[2];
+		String itemInfoFile = args[3];
+		String userInfoFile = args[4];
+		String testAnswer = args[5];
+		
+		double time = System.currentTimeMillis();
+		
+		// Matrix Factorization parameters
+//		int k = 80; 
+		double alpha = 0.00002;
+		double beta = 0.002;
+		
+//		String matrixDat = "matrix.dat";	// "\t"
+//		String itemDat = "item.dat";	// "|"
+//		String userDat = "user.dat";	// "|"
+//		String testInput = "test.input";	// "\t"
+//		String testAnswer = "real.test";	// "\t"
+		
+		Matrix matrix = GetFile.getMatrix(matrixDat);
+		Matrix R = GetFile.getUserItem(matrix); // user-item matrix
+		
+		double globalMu = getGlobalAverage(R);
+		Double[] uBias = getUserBias(R, globalMu);
+		Double[] iBias = getItemBias(R, globalMu);
+//		System.out.println(globalMu);
+//		printArray(uBias);
+//		printArray(iBias);
+//		System.exit(1);
+		
+//		int U = Integer.parseInt(numOfUsers);
+//		int I = Integer.parseInt(numOfItems);
+		int U = R.getRowDimension();
+		int I = R.getColumnDimension();
+//		System.out.println(U+" "+I);
 
+		//initialize matrix P and Q
+		double[][] arrP = new double[U][k];	// matrix for users
+		double[][] arrQ = new double[k][I];	// matrix for items
+		
+		Matrix P = new Matrix(arrP);
+		P = initialMatrix(P);
+		
+		Matrix Q = new Matrix(arrQ);
+		Q = initialMatrix(Q);
+		
+		Matrix R_ = P.times(Q);
+		R_ = addBias(R_, uBias, iBias, globalMu);
+		double errorSum = Double.MAX_VALUE;
+		
+		int count = 0;
+		
+		double diff = Double.MAX_VALUE;
+
+		do {
+			
+			// to get differences
+			Matrix tempE = getErrorSquare1(R, R_);
+			Matrix E = getErrorSquare(beta, tempE, P, Q, uBias, iBias);
+
+			Matrix sqrtE = getSqrtE(E);
+
+			// to update p, q
+			Matrix newP = updateP(alpha, beta, sqrtE, P, Q, R);
+			Matrix newQ = updateQ(alpha, beta, sqrtE, P, Q, R);
+			
+			P = setMatrix(newP);
+			Q = setMatrix(newQ);
+			double oldErrorSum = errorSum;
+			errorSum = getError(R, E);
+//			System.out.println(count+":\t"+errorSum);
+			
+			if(oldErrorSum < errorSum) {
+//				System.out.println("count: "+count);
+//				System.out.println("old E: "+oldErrorSum+"\tE: "+errorSum);
+//				GetFile.writeFile(R_, "matrixFactorization");
+//				System.out.println("writing done");
+//				System.exit(1);
+//				System.out.println("done by codition 1");
+				break;
+			}
+			
+			R_ = P.times(Q);
+			R_ = addBias(R_, uBias, iBias, globalMu);
+			
+			if(count > 5000) {
+//				System.out.println("count: "+count);
+//				System.out.println("old E: "+oldErrorSum+"\tE: "+errorSum);
+//				GetFile.writeFile(R_, "matrixFactorization");
+//				System.out.println("writing done");
+//				System.out.println("done by condition 2");
+				break;
+			}
+			
+			count++;
+			diff = Math.abs(oldErrorSum - errorSum);
+		} while(diff > 0.00001);
+		
+//		F.writeFile(R_);
+		
+
+		// for cosine similarity
+		String matrixDat2 = matrixDat;	// "\t"
+		Matrix matrix2 = CosinePrediction.getMatrix(matrixDat2);
+		Matrix userItem = CosinePrediction.getUserItem(matrix2); // user-item matrix
+		R_ = getRoundMatrix(R_);
+		
+		// prediction and to measure algorithm
+		double rmse = 0d;
+		double mape = 0d;
+//		matrixDat = "matrixFactorization";
+//		Matrix mat = GetFile.getMatrix(matrixDat);
+		Matrix mat = R_;
+		Matrix test = GetFile.getMatrix(testAnswer);
+//		double[][] resultArr = new double[test.getRowDimension()][2];
+		double[][] outputTemp = new double[test.getRowDimension()][3];
+		String[][] output = new String[test.getRowDimension()][3];
+//		Matrix result = new Matrix(resultArr);
+		int missing = 0;
+		for(int i = 0; i < test.getRowDimension(); i++) {
+			int user = (int)test.get(i, 0) - 1;
+			int item = (int)test.get(i, 1) - 1;
+			
+//			System.out.println(user+"\t"+item);
+//			System.out.println(mat.getRowDimension()+"\t"+(user-2));
+//			System.out.println(mat.getColumnDimension()+"\t"+(item));
+			if(mat.getColumnDimension() <= item) {
+				missing++;
+			} else {
+
+				double est = mat.get(user,item);
+				if(est == 0d) {
+	//				System.out.print(est+"\t");
+					est = CosinePrediction.prediction((int)test.get(i,0), (int)test.get(i,1), userItem);
+	//				System.out.println(est);
+				} else if(est > 6.0) {
+	//				System.out.print(est+"\t");
+					est = CosinePrediction.prediction((int)test.get(i,0), (int)test.get(i,1), userItem);
+	//				System.out.println(est);
+				}
+				
+	//			resultArr[i][0] = est;
+	//			resultArr[i][1] = test.get(i, 2);
+				
+				outputTemp[i][0] = test.get(i, 0);
+				outputTemp[i][1] = test.get(i, 1);
+				outputTemp[i][2] = est;
+				
+				output[i][0] = Integer.toString((int)test.get(i, 0));
+				output[i][1] = Integer.toString((int)test.get(i, 1));
+				output[i][2] = Double.toString(est);
+				
+				if(test.getColumnDimension()>2) {
+		//			System.out.println(test.get(i, 2)+"\t"+est);
+					rmse += Math.pow(est-test.get(i, 2), 2);
+		//			System.out.println(rmse);
+					mape += Math.abs(est-test.get(i, 2)) / (double)test.get(i, 2);
+				}
+			}
+		}
+		
+//		GetFile.printMatrix(R_);
+		
+		rmse /= (double) (test.getRowDimension()-missing);
+		rmse = Math.sqrt(rmse);
+		mape /= (double) test.getRowDimension();
+		mape *= 100.0;
+		System.out.println("RMSE: "+rmse);
+//		System.out.println("MAPE: "+mape);
+		
+//		GetFile.writeFile(result, "result");
+		if(missing > 0) {
+			output = doubleToString(outputTemp);
+		}
+		GetFile.writeFile(output, "output");
+//		System.out.println("program done. "+(System.currentTimeMillis()-time)+" ms");
 	}
 }

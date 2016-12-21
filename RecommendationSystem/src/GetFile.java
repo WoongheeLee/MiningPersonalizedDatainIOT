@@ -13,6 +13,32 @@ import Jama.Matrix;
 public class GetFile {
 	public GetFile() {}
 
+	public static void writeFile(String[][] arr, String fileName) {
+		try {
+			BufferedWriter bw = new BufferedWriter(new FileWriter(fileName));
+			
+			for(int i = 0; i < arr.length; i++) {
+				for(int j = 0; j < arr[i].length; j++) {
+					if(j == 0) {
+						bw.write(arr[i][j]);
+						bw.flush();
+					} else {
+						bw.write("\t"+arr[i][j]);
+						bw.flush();
+					}
+				}
+				bw.write("\n");
+				bw.flush();
+			}
+			
+			bw.close();
+			
+		} catch (IOException e) {
+			e.printStackTrace();
+			System.exit(1);
+		}
+	}
+	
 	public static void writeFile(Matrix mat, String fileName) {
 		try {
 			BufferedWriter bw = new BufferedWriter(new FileWriter(fileName));
@@ -45,6 +71,7 @@ public class GetFile {
 		int key = 0;
 		try {
 			String line;
+			@SuppressWarnings("resource")
 			BufferedReader reader = new BufferedReader(new FileReader(fName));
 			while((line = reader.readLine()) != null) {
 				if(line.length() < 2) continue;
@@ -60,6 +87,7 @@ public class GetFile {
 			System.exit(1);
 		}
 		
+//		System.out.println(temp.keySet().size()+"\t"+temp.get(0).size());
 		double[][] array = new double[temp.keySet().size()][temp.get(0).size()];
 		for(int i = 0; i < key; i++) {
 			for(int j = 0; j < temp.get(0).size(); j++) {
@@ -77,6 +105,7 @@ public class GetFile {
 		
 		try {
 			String line;
+			@SuppressWarnings("resource")
 			BufferedReader reader = new BufferedReader(new FileReader(fName));
 			while((line = reader.readLine()) != null) {
 				StringTokenizer st = new StringTokenizer(line, "|");
@@ -119,18 +148,20 @@ public class GetFile {
 	}
 	
 	public static Matrix getUserItem(Matrix mat) {
-		double M = 0;
-		double N = 0;
+		double M = 0d;
+		double N = 0d;
 		for(int i = 0; i < mat.getRowDimension(); i++) {
 			if(M < mat.get(i, 0)) {
 				M = mat.get(i, 0);
+//				System.out.println("M: "+M);
 			}
 			if(N < mat.get(i, 1)) {
 				N = mat.get(i, 1);
+//				System.out.println("N: "+N);
 			}
 		}
-		
 		double[][] temp = new double[(int)M][(int)N];
+//		System.out.println(temp.length+"\t"+temp[0].length);
 		for(int i = 0; i < mat.getRowDimension(); i++) {
 			temp[(int)mat.get(i,0)-1][(int)mat.get(i,1)-1] = mat.get(i, 2);
 //			System.out.println((mat.get(i, 0)-1) + "\t"+(mat.get(i, 1)-1)+"\t"+mat.get(i, 2));
